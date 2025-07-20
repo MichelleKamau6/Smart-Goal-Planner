@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMART Goal Planner</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>SMART Goal Planner</h1>
+  </header>
+
+  <main>
+    <!-- Add Goal Form -->
+    <section id="goal-form-section">
+      <h2>Add New Goal</h2>
+      <form id="goal-form">
+        <input type="text" id="goal-name" placeholder="Goal Name" required />
+        <input type="number" id="target-amount" placeholder="Target Amount" required />
+        <input type="text" id="category" placeholder="Category" required />
+        <input type="date" id="deadline" required />
+        <button type="submit">Add Goal</button>
+      </form>
+    </section>
+
+    <!-- Overview -->
+    <section id="overview-section">
+      <h2>Overview</h2>
+      <div id="overview"></div>
+    </section>
+
+    <!-- Goal Cards -->
+    <section id="goals-dashboard">
+      <h2>Your Goals</h2>
+      <div id="goals-container"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

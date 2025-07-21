@@ -67,6 +67,8 @@ goalForm.addEventListener('submit', function (e) {
       goalForm.reset();
       fetchGoals();
     });
+     
+console.log("Form submitted!");
 });
 
 // Handle deposits, edits, deletes

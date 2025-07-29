@@ -1,12 +1,23 @@
 const BASE_URL = 'http://localhost:3000/goals';
 const goalsContainer = document.getElementById('goals-container');
 const goalForm = document.getElementById('goal-form');
+let useLocalStorage = false;
 
-// Fetch and render all goals
+// Check if JSON Server is available, fallback to localStorage
 function fetchGoals() {
   fetch(BASE_URL)
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error('Server not available');
+      return res.json();
+    })
     .then(goals => {
+      goalsContainer.innerHTML = '';
+      goals.forEach(goal => displayGoal(goal));
+      updateOverview(goals);
+    })
+    .catch(() => {
+      useLocalStorage = true;
+      const goals = JSON.parse(localStorage.getItem('goals') || '[]');
       goalsContainer.innerHTML = '';
       goals.forEach(goal => displayGoal(goal));
       updateOverview(goals);
@@ -48,6 +59,7 @@ goalForm.addEventListener('submit', function (e) {
   e.preventDefault();
 
   const newGoal = {
+    id: Date.now().toString(),
     name: document.getElementById('goal-name').value,
     targetAmount: Number(document.getElementById('target-amount').value),
     savedAmount: 0,
@@ -56,17 +68,33 @@ goalForm.addEventListener('submit', function (e) {
     createdAt: new Date().toISOString().split('T')[0]
   };
 
-  fetch(BASE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(newGoal)
-  })
-    .then(res => res.json())
-    .then(goal => {
-      displayGoal(goal);
-      goalForm.reset();
-      fetchGoals();
-    });
+  if (useLocalStorage) {
+    const goals = JSON.parse(localStorage.getItem('goals') || '[]');
+    goals.push(newGoal);
+    localStorage.setItem('goals', JSON.stringify(goals));
+    goalForm.reset();
+    fetchGoals();
+  } else {
+    fetch(BASE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newGoal)
+    })
+      .then(res => res.json())
+      .then(goal => {
+        displayGoal(goal);
+        goalForm.reset();
+        fetchGoals();
+      })
+      .catch(() => {
+        useLocalStorage = true;
+        const goals = JSON.parse(localStorage.getItem('goals') || '[]');
+        goals.push(newGoal);
+        localStorage.setItem('goals', JSON.stringify(goals));
+        goalForm.reset();
+        fetchGoals();
+      });
+  }
 });
 
 // Handle deposits, edits, deletes
@@ -77,18 +105,28 @@ goalsContainer.addEventListener('submit', function (e) {
     const goalId = form.dataset.id;
     const amount = Number(form.amount.value);
 
-    fetch(`${BASE_URL}/${goalId}`)
-      .then(res => res.json())
-      .then(goal => {
-        const updatedAmount = goal.savedAmount + amount;
+    if (useLocalStorage) {
+      const goals = JSON.parse(localStorage.getItem('goals') || '[]');
+      const goal = goals.find(g => g.id === goalId);
+      if (goal) {
+        goal.savedAmount += amount;
+        localStorage.setItem('goals', JSON.stringify(goals));
+        fetchGoals();
+      }
+    } else {
+      fetch(`${BASE_URL}/${goalId}`)
+        .then(res => res.json())
+        .then(goal => {
+          const updatedAmount = goal.savedAmount + amount;
 
-        return fetch(`${BASE_URL}/${goalId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ savedAmount: updatedAmount })
-        });
-      })
-      .then(() => fetchGoals());
+          return fetch(`${BASE_URL}/${goalId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ savedAmount: updatedAmount })
+          });
+        })
+        .then(() => fetchGoals());
+    }
   }
 });
 
@@ -96,8 +134,15 @@ goalsContainer.addEventListener('click', function (e) {
   const goalId = e.target.dataset.id;
 
   if (e.target.classList.contains('delete-btn')) {
-    fetch(`${BASE_URL}/${goalId}`, { method: 'DELETE' })
-      .then(() => fetchGoals());
+    if (useLocalStorage) {
+      const goals = JSON.parse(localStorage.getItem('goals') || '[]');
+      const filtered = goals.filter(g => g.id !== goalId);
+      localStorage.setItem('goals', JSON.stringify(filtered));
+      fetchGoals();
+    } else {
+      fetch(`${BASE_URL}/${goalId}`, { method: 'DELETE' })
+        .then(() => fetchGoals());
+    }
   }
 
   if (e.target.classList.contains('edit-btn')) {
@@ -107,16 +152,29 @@ goalsContainer.addEventListener('click', function (e) {
     const deadline = prompt('New deadline (YYYY-MM-DD):');
 
     if (name && targetAmount && category && deadline) {
-      fetch(`${BASE_URL}/${goalId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          targetAmount: Number(targetAmount),
-          category,
-          deadline
-        })
-      }).then(() => fetchGoals());
+      if (useLocalStorage) {
+        const goals = JSON.parse(localStorage.getItem('goals') || '[]');
+        const goal = goals.find(g => g.id === goalId);
+        if (goal) {
+          goal.name = name;
+          goal.targetAmount = Number(targetAmount);
+          goal.category = category;
+          goal.deadline = deadline;
+          localStorage.setItem('goals', JSON.stringify(goals));
+          fetchGoals();
+        }
+      } else {
+        fetch(`${BASE_URL}/${goalId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            targetAmount: Number(targetAmount),
+            category,
+            deadline
+          })
+        }).then(() => fetchGoals());
+      }
     }
   }
 });
